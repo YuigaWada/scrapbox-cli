@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"unicode"
@@ -19,6 +20,7 @@ type Page struct {
 	ID      string `json:"id"`
 	BaseUrl string
 	ApiUrl  string
+	User    *ScrapUser
 }
 
 func (p Page) Description() string {
@@ -37,25 +39,30 @@ func (p Page) FilterValue() string {
 	return p.Title_
 }
 
-func (p Page) Read() ScrapboxPage {
+func (p Page) Read() (ScrapboxPage, error) {
 	const errMsg = "Failed to open URL .... :("
 	if len(p.ApiUrl) == 0 {
-		return errMsg
+		return ScrapboxPage{}, fmt.Errorf(errMsg)
 	}
 
 	resp, err := http.Get(p.ApiUrl)
 	if err != nil {
-		return errMsg
+		return ScrapboxPage{}, err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return errMsg
+		return ScrapboxPage{}, err
 	}
 
-	content := ScrapboxPage(body)
-	return content.parse()
+	content := ScrapboxPage{string(body), []string{}}
+	return content.parse(), nil
+}
+
+func MakePage(user *ScrapUser, title string) Page {
+	return Page{Title_: title,
+		ApiUrl: user.getDetailApi(title)}
 }
 
 var _ list.DefaultItem = (*Page)(nil)
@@ -102,6 +109,7 @@ func (p *Pager) Read(user ScrapUser) []Page {
 
 	for i, page := range pages {
 		pages[i].ApiUrl = user.getDetailApi(page.Title_)
+		pages[i].User = &user
 	}
 
 	return pages
@@ -110,17 +118,19 @@ func (p Pager) Write(title string, body string) {
 
 }
 
-type ScrapboxPage string
+type ScrapboxPage struct {
+	Content string
+	Links   []string
+}
+
+func isSpace(target rune) bool {
+	return unicode.IsSpace(target) || target == 0x3000
+}
 
 func (spage *ScrapboxPage) parse() ScrapboxPage {
-	rex := regexp.MustCompile(`\[([^(\[|\])]+)\]`)
-	patterns := rex.FindAllStringSubmatch(string(*spage), -1)
+	rex := regexp.MustCompile(`\[([^$][^(\[|\])]+)\]`)
 
-	if len(patterns) == 0 {
-		return *spage
-	}
-
-	slice := strings.Split(spage.ToString(), "\n")
+	slice := strings.Split(spage.Content, "\n")
 	dotStr := lipgloss.NewStyle().Bold(true).Render("・")
 	for i, str := range slice {
 		str := []rune(str)
@@ -131,27 +141,51 @@ func (spage *ScrapboxPage) parse() ScrapboxPage {
 			continue
 		}
 		for j := 0; j < len(str); j++ {
-			if !unicode.IsSpace(str[j]) && j > 0 {
+			if !isSpace(str[j]) && j > 0 {
 				slice[i] = slice[i][:j] + dotStr + slice[i][j:]
 				break
 			}
 		}
 	}
 
-	*spage = ScrapboxPage(strings.Join(slice, "\n"))
+	*spage = ScrapboxPage{strings.Join(slice[1:], "\n"), []string{}}
+	patterns := rex.FindAllStringSubmatch(spage.Content, -1)
+
+	if len(patterns) == 0 {
+		return *spage
+	}
 
 	var style = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
 	for _, pattern := range patterns {
-		for _, link := range pattern {
+		for i, link := range pattern {
+			if i == 0 {
+				continue
+			}
 			decoLink := fmt.Sprintf("[%s]", string(link))
-			s := strings.Replace(string(*spage), decoLink, style.Render(link), -1)
-			*spage = ScrapboxPage(s)
+			if !contains(spage.Links, link) {
+				spage.Links = append(spage.Links, link)
+			}
+			spage.Content = strings.Replace(spage.Content, decoLink, style.Render(link), -1)
 		}
 	}
 
 	return *spage
 }
 
-func (spage ScrapboxPage) ToString() string {
-	return string(spage)
+func contains(list interface{}, elem interface{}) bool {
+	listV := reflect.ValueOf(list)
+
+	if listV.Kind() == reflect.Slice {
+		for i := 0; i < listV.Len(); i++ {
+			item := listV.Index(i).Interface()
+			if !reflect.TypeOf(elem).ConvertibleTo(reflect.TypeOf(item)) {
+				continue
+			}
+			target := reflect.ValueOf(elem).Convert(reflect.TypeOf(item)).Interface()
+			if ok := reflect.DeepEqual(item, target); ok {
+				return true
+			}
+		}
+	}
+	return false
 }

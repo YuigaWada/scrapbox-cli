@@ -16,23 +16,17 @@ type listModel struct {
 	list     list.Model
 	viewport viewport.Model
 	pages    []api.Page
+	load     func() tea.Msg
+	ready    bool
 }
 
 type pagesLoadedMsg struct {
 	pages []api.Page
 }
 
-func (m listModel) loadPages() tea.Msg {
-	config := LoadConfig()
-	pager := api.MakePager()
-	user := api.ScrapUser{config.project}
-	rawPages := pager.Read(user)
-	return pagesLoadedMsg{rawPages}
-}
-
 func (m listModel) Init() tea.Cmd {
 	return tea.Batch(
-		m.loadPages,
+		m.load,
 		m.list.StartSpinner(),
 	)
 }
@@ -49,9 +43,12 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
 		m.viewport.YPosition = 0
 		m.viewport.HighPerformanceRendering = false
-		m.viewport.SetContent(m.list.Title)
-		m.viewport.YPosition = 0
 		m.list.SetSize(msg.Width, msg.Height)
+
+		if !m.ready {
+			m.viewport.SetContent(m.list.Title)
+			m.ready = true
+		}
 
 	case pagesLoadedMsg:
 		items := make([]list.Item, len(msg.pages))
@@ -65,7 +62,12 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter", " ":
-			RunPager(m.pages[m.list.Index()]) // todo: m.list.SelectedItem()
+			for _, item := range m.pages {
+				if m.list.SelectedItem().FilterValue() == item.Title_ {
+					RunPager(item)
+					break
+				}
+			}
 		}
 	}
 
@@ -90,9 +92,11 @@ func max(a, b int) int {
 	return b
 }
 
-func MakeListModel() listModel {
+func MakeListModel(loadFunc func() tea.Msg) listModel {
 	m := listModel{
-		list: list.New(nil, list.NewDefaultDelegate(), 1, 1),
+		list:  list.New(nil, list.NewDefaultDelegate(), 1, 1),
+		load:  loadFunc,
+		ready: false,
 	}
 
 	m.list.StartSpinner()

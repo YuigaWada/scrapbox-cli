@@ -1,6 +1,7 @@
 package main
 
 import (
+	api "YuigaWada/sbox/wrapper"
 	"fmt"
 	"log"
 	"os"
@@ -8,6 +9,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/urfave/cli/v2"
 )
+
+func loadPages() tea.Msg {
+	config := LoadConfig()
+	pager := api.MakePager()
+	user := api.ScrapUser{config.project}
+	rawPages := pager.Read(user)
+	return pagesLoadedMsg{rawPages}
+}
 
 func getCommands() []*cli.Command {
 	return []*cli.Command{
@@ -32,7 +41,7 @@ func getCommands() []*cli.Command {
 			Aliases: []string{"v"},
 			Usage:   "complete a task on the list",
 			Action: func(c *cli.Context) error {
-				prog := tea.NewProgram(MakeListModel())
+				prog := tea.NewProgram(MakeListModel(loadPages))
 				err := prog.Start()
 				if err != nil {
 					log.Fatal(err)
