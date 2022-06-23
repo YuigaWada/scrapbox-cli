@@ -39,7 +39,7 @@ func (p Page) FilterValue() string {
 	return p.Title_
 }
 
-func (p Page) Read() (ScrapboxPage, error) {
+func (p Page) Read(mainColor lipgloss.Color) (ScrapboxPage, error) {
 	const errMsg = "Failed to open URL .... :("
 	if len(p.ApiUrl) == 0 {
 		return ScrapboxPage{}, fmt.Errorf(errMsg)
@@ -57,7 +57,7 @@ func (p Page) Read() (ScrapboxPage, error) {
 	}
 
 	content := ScrapboxPage{string(body), []string{}}
-	return content.parse(), nil
+	return content.parse(mainColor), nil
 }
 
 func MakePage(user *ScrapUser, title string) Page {
@@ -127,8 +127,8 @@ func isSpace(target rune) bool {
 	return unicode.IsSpace(target) || target == 0x3000
 }
 
-func (spage *ScrapboxPage) parse() ScrapboxPage {
-	rex := regexp.MustCompile(`\[([^$][^(\[|\])]+)\]`)
+func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
+	rex := regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
 
 	slice := strings.Split(spage.Content, "\n")
 	dotStr := lipgloss.NewStyle().Bold(true).Render("・")
@@ -155,7 +155,7 @@ func (spage *ScrapboxPage) parse() ScrapboxPage {
 		return *spage
 	}
 
-	var style = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
+	var style = lipgloss.NewStyle().Foreground(mainColor)
 	for _, pattern := range patterns {
 		for i, link := range pattern {
 			if i == 0 {

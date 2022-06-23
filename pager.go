@@ -76,7 +76,7 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.viewport = viewport.New(msg.Width, int(float64(height)*heightAlpha))
 
-			page, err := m.rawPage.Read()
+			page, err := m.rawPage.Read(mainColor)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -127,7 +127,7 @@ func (m pagerModel) View() string {
 		return "Fetching...\n" + m.progress.View()
 	}
 
-	var style = lipgloss.NewStyle().Foreground(lipgloss.Color("201"))
+	var style = lipgloss.NewStyle().Foreground(mainColor)
 	baseView := fmt.Sprintf("%s\n%s\n%s\n", m.headerView(), m.viewport.View(), m.footerView())
 	for i, link := range m.page.Links {
 		cursor := " "

@@ -7,7 +7,12 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/urfave/cli/v2"
+)
+
+const (
+	mainColor = lipgloss.Color("#17c0eb")
 )
 
 func loadPages() tea.Msg {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	bubleList "github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 
@@ -92,9 +93,28 @@ func max(a, b int) int {
 	return b
 }
 
+func makeLipglossStyles() bubleList.DefaultItemStyles {
+	styles := bubleList.NewDefaultItemStyles()
+	styles.SelectedTitle = lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		BorderForeground(mainColor).
+		Foreground(mainColor).
+		Padding(0, 0, 0, 1)
+
+	styles.SelectedDesc = styles.SelectedTitle.Copy().
+		Foreground(mainColor)
+	return styles
+}
+
+func makeListDelegate() bubleList.DefaultDelegate {
+	delegate := bubleList.NewDefaultDelegate()
+	delegate.Styles = makeLipglossStyles()
+	return delegate
+}
+
 func MakeListModel(loadFunc func() tea.Msg) listModel {
 	m := listModel{
-		list:  list.New(nil, list.NewDefaultDelegate(), 1, 1),
+		list:  list.New(nil, makeListDelegate(), 1, 1),
 		load:  loadFunc,
 		ready: false,
 	}
