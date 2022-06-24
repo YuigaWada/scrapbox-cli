@@ -85,7 +85,7 @@ type Pager struct {
 }
 
 func MakePager() Pager {
-	return Pager{0, 100}
+	return Pager{0, 500}
 }
 
 func (p *Pager) Read(user ScrapUser) []Page {
