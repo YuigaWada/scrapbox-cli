@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -37,16 +38,22 @@ var (
 )
 
 type pagerModel struct {
-	rawPage  api.Page
-	page     api.ScrapboxPage
-	ready    bool
-	viewport viewport.Model
-	progress progress.Model
-	sublist  subListModel
+	rawPage           api.Page
+	page              api.ScrapboxPage
+	ready             bool
+	viewport          viewport.Model
+	progress          progress.Model
+	sublist           subListModel
+	paginator         paginator.Model
+	visibleItemLength int
 }
 
 type subListModel struct {
-	cursor int
+	index int
+}
+
+func (m subListModel) getCursor(perPage int) int {
+	return m.index % perPage
 }
 
 func (m pagerModel) Init() tea.Cmd {
@@ -82,8 +89,10 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.viewport.SetContent(page.Content)
+			m.paginator.SetTotalPages(len(page.Links))
 			m.page = page
 			m.ready = true
+			m.paginator.PerPage = int(float64(height) * (1 - heightAlpha))
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = int(float64(msg.Height)*heightAlpha) - verticalMarginHeight
@@ -97,15 +106,23 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "ctrl+c", "c", "q":
 			return m, tea.Quit
 		case "left", "k":
-			if m.sublist.cursor > 0 {
-				m.sublist.cursor--
+			if m.sublist.index > 0 {
+				m.sublist.index--
+				if (m.sublist.index+1)%m.paginator.PerPage == 0 {
+					m.paginator.PrevPage()
+				}
 			}
 		case "right", "j":
-			if m.sublist.cursor < len(m.page.Links)-1 {
-				m.sublist.cursor++
+			if m.sublist.index+1 < len(m.page.Links) {
+				m.sublist.index++
 			}
+
+			if m.sublist.index%m.paginator.PerPage == 0 && !m.paginator.OnLastPage() {
+				m.paginator.NextPage()
+			}
+			break
 		case "enter", " ":
-			link := m.page.Links[m.sublist.cursor]
+			link := m.page.Links[m.sublist.index]
 			if isUrl, url := hasUrl(link); isUrl {
 				if err := webbrowser.Open(url); err != nil {
 					log.Fatal(err)
@@ -129,13 +146,18 @@ func (m pagerModel) View() string {
 
 	var style = lipgloss.NewStyle().Foreground(mainColor)
 	baseView := fmt.Sprintf("%s\n%s\n%s\n", m.headerView(), m.viewport.View(), m.footerView())
-	for i, link := range m.page.Links {
+	start, end := m.paginator.GetSliceBounds(len(m.page.Links))
+	m.visibleItemLength = end - start + 1
+	perPage := m.paginator.PerPage
+	pageCount := m.paginator.Page
+	p := pageCount * perPage
+	for i, link := range m.page.Links[p:min(p+perPage, len(m.page.Links))] {
 		cursor := " "
-		if m.sublist.cursor == i {
+		if m.sublist.getCursor(perPage) == i {
 			cursor = ">"
 		}
 		subListView := fmt.Sprintf("%s %s\n", cursor, link)
-		if m.sublist.cursor == i {
+		if m.sublist.getCursor(perPage) == i {
 			subListView = style.Render(subListView)
 		}
 		baseView += subListView
@@ -165,8 +187,15 @@ func hasUrl(text string) (bool, string) {
 	return false, ""
 }
 
+func min(a int, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func RunPager(rawPage api.Page) {
-	model := pagerModel{rawPage: rawPage}
+	model := pagerModel{rawPage: rawPage, paginator: paginator.NewModel()}
 
 	p := tea.NewProgram(
 		model,
