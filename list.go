@@ -14,11 +14,12 @@ import (
 )
 
 type listModel struct {
-	list     list.Model
-	viewport viewport.Model
-	pages    []api.Page
-	load     func() tea.Msg
-	ready    bool
+	list      list.Model
+	viewport  viewport.Model
+	pages     []api.Page
+	load      func() tea.Msg
+	ready     bool
+	viewDepth int
 }
 
 type pagesLoadedMsg struct {
@@ -61,11 +62,14 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pages = msg.pages
 
 	case tea.KeyMsg:
+		if m.viewDepth != 0 {
+			break
+		}
 		switch msg.String() {
 		case "enter", " ":
 			for _, item := range m.pages {
 				if m.list.SelectedItem().FilterValue() == item.Title_ {
-					RunPager(item)
+					RunPager(item, &m.viewDepth)
 					break
 				}
 			}
@@ -112,9 +116,15 @@ func makeListDelegate() bubleList.DefaultDelegate {
 	return delegate
 }
 
+func makeList() list.Model {
+	lm := list.New(nil, makeListDelegate(), 1, 1)
+	lm.Title = "sbox"
+	return lm
+}
+
 func MakeListModel(loadFunc func() tea.Msg) listModel {
 	m := listModel{
-		list:  list.New(nil, makeListDelegate(), 1, 1),
+		list:  makeList(),
 		load:  loadFunc,
 		ready: false,
 	}

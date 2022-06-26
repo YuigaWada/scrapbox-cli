@@ -46,6 +46,8 @@ type pagerModel struct {
 	sublist           subListModel
 	paginator         paginator.Model
 	visibleItemLength int
+	viewDepth         *int
+	currentDepth      int
 }
 
 type subListModel struct {
@@ -101,9 +103,14 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.YPosition = headerHeight + 1
 		// m.sublist.viewport.YPosition = height/2 + headerHeight
 	case tea.KeyMsg:
+		if *m.viewDepth != m.currentDepth {
+			break
+		}
+
 		// sublist
 		switch msg.String() {
-		case "esc", "ctrl+c", "c", "q":
+		case "esc", "c", "q":
+			*m.viewDepth--
 			return m, tea.Quit
 		case "left", "k":
 			if m.sublist.index > 0 {
@@ -129,7 +136,7 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				break
 			}
-			RunPager(api.MakePage(m.rawPage.User, link))
+			RunPager(api.MakePage(m.rawPage.User, link), m.viewDepth)
 		}
 	}
 
@@ -194,8 +201,12 @@ func min(a int, b int) int {
 	return b
 }
 
-func RunPager(rawPage api.Page) {
-	model := pagerModel{rawPage: rawPage, paginator: paginator.NewModel()}
+func RunPager(rawPage api.Page, viewDepth *int) {
+	*viewDepth++
+	model := pagerModel{rawPage: rawPage,
+		paginator:    paginator.NewModel(),
+		viewDepth:    viewDepth,
+		currentDepth: *viewDepth}
 
 	p := tea.NewProgram(
 		model,
