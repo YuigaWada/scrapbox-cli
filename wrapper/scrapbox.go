@@ -23,6 +23,8 @@ type Page struct {
 	User    *ScrapUser
 }
 
+var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
+
 func (p Page) Description() string {
 	res, err := url.PathUnescape(p.ApiUrl)
 	if err != nil {
@@ -128,8 +130,6 @@ func isSpace(target rune) bool {
 }
 
 func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
-	rex := regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
-
 	slice := strings.Split(spage.Content, "\n")
 	dotStr := lipgloss.NewStyle().Bold(true).Render("・")
 	for i, str := range slice {
@@ -150,7 +150,7 @@ func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
 	}
 
 	*spage = ScrapboxPage{strings.Join(slice[1:], "\n"), []string{}}
-	patterns := rex.FindAllStringSubmatch(spage.Content, -1)
+	patterns := scrapLinkRegex.FindAllStringSubmatch(spage.Content, -1)
 
 	if len(patterns) == 0 {
 		return *spage

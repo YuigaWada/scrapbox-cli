@@ -22,6 +22,7 @@ const (
 )
 
 var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
+var linkRegex = regexp.MustCompile(`https?://[\w!?/+\-_~;.,*&@#$%()'[\]]+`)
 
 var (
 	titleStyle = func() lipgloss.Style {
@@ -186,8 +187,7 @@ func (m pagerModel) footerView() string {
 }
 
 func hasUrl(text string) (bool, string) {
-	rex := regexp.MustCompile(`https?://[\w!?/+\-_~;.,*&@#$%()'[\]]+`)
-	patterns := rex.FindAllStringSubmatch(text, -1)
+	patterns := linkRegex.FindAllStringSubmatch(text, -1)
 	if len(patterns) > 0 {
 		return true, patterns[0][0]
 	}
