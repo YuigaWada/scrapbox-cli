@@ -163,11 +163,11 @@ func (m pagerModel) View() string {
 		if m.sublist.getCursor(perPage) == i {
 			cursor = ">"
 		}
-		subListView := fmt.Sprintf("%s %s\n", cursor, link)
+		subListView := fmt.Sprintf("%s %s", cursor, link)
 		if m.sublist.getCursor(perPage) == i {
 			subListView = style.Render(subListView)
 		}
-		baseView += subListView
+		baseView += subListView + "\n"
 	}
 
 	return baseView
