@@ -137,12 +137,13 @@ func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
 		if i == 0 {
 			continue
 		}
-		if len(str) == 0 || str[0] != ' ' {
+		if len(str) == 0 || !isSpace(str[0]) {
 			continue
 		}
-		for j := 0; j < len(str); j++ {
-			if !isSpace(str[j]) && j > 0 {
-				slice[i] = slice[i][:j] + dotStr + slice[i][j:]
+		for j := 1; j < len(str); j++ {
+			if !isSpace(str[j]) {
+				s := append(str[:j], append([]rune(dotStr), str[j:]...)...)
+				slice[i] = string(s)
 				break
 			}
 		}
