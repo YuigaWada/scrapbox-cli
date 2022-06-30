@@ -14,12 +14,11 @@ import (
 )
 
 type listModel struct {
-	list      list.Model
-	viewport  viewport.Model
-	pages     []api.Page
-	load      func() tea.Msg
-	ready     bool
-	viewDepth int
+	list     list.Model
+	viewport viewport.Model
+	pages    []api.Page
+	load     func() tea.Msg
+	ready    bool
 }
 
 type pagesLoadedMsg struct {
@@ -46,6 +45,8 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.YPosition = 0
 		m.viewport.HighPerformanceRendering = false
 		m.list.SetSize(msg.Width, msg.Height)
+		Width = msg.Width
+		Height = msg.Height
 
 		if !m.ready {
 			m.viewport.SetContent(m.list.Title)
@@ -62,15 +63,14 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pages = msg.pages
 
 	case tea.KeyMsg:
-		if m.viewDepth != 0 {
-			break
-		}
+
 		switch msg.String() {
 		case "enter", " ":
 			for _, item := range m.pages {
 				if m.list.SelectedItem().FilterValue() == item.Title_ {
-					RunPager(item, &m.viewDepth)
-					break
+					model := MakePager(item)
+					model.parent = &m
+					return model, MakeInitMsg
 				}
 			}
 		}

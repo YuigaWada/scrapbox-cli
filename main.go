@@ -15,6 +15,9 @@ const (
 	mainColor = lipgloss.Color("#17c0eb")
 )
 
+var Width int = 0
+var Height int = 0
+
 func loadPages() tea.Msg {
 	config := LoadConfig()
 	pager := api.MakePager()
@@ -67,5 +70,12 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func MakeInitMsg() tea.Msg {
+	return tea.WindowSizeMsg{
+		Width:  Width,
+		Height: Height,
 	}
 }

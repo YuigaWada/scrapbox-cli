@@ -4,7 +4,6 @@ import (
 	api "YuigaWada/sbox/wrapper"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 
@@ -39,6 +38,7 @@ var (
 )
 
 type pagerModel struct {
+	parent            interface{}
 	rawPage           api.Page
 	page              api.ScrapboxPage
 	ready             bool
@@ -47,8 +47,6 @@ type pagerModel struct {
 	sublist           subListModel
 	paginator         paginator.Model
 	visibleItemLength int
-	viewDepth         *int
-	currentDepth      int
 }
 
 type subListModel struct {
@@ -82,6 +80,8 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		height := msg.Height - verticalMarginHeight
 		heightAlpha := 3 / 4.0
 		m.viewport.HighPerformanceRendering = false
+		Width = msg.Width
+		Height = msg.Height
 
 		if !m.ready {
 			m.viewport = viewport.New(msg.Width, int(float64(height)*heightAlpha))
@@ -104,15 +104,10 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.YPosition = headerHeight + 1
 		// m.sublist.viewport.YPosition = height/2 + headerHeight
 	case tea.KeyMsg:
-		if *m.viewDepth != m.currentDepth {
-			break
-		}
-
 		// sublist
 		switch msg.String() {
 		case "esc", "c", "q":
-			*m.viewDepth--
-			return m, tea.Quit
+			return m.parent.(tea.Model), nil
 		case "left", "k":
 			if m.sublist.index > 0 {
 				m.sublist.index--
@@ -137,7 +132,9 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				break
 			}
-			RunPager(api.MakePage(m.rawPage.User, link), m.viewDepth)
+			model := MakePager(api.MakePage(m.rawPage.User, link))
+			model.parent = &m
+			return model, MakeInitMsg
 		}
 	}
 
@@ -201,21 +198,8 @@ func min(a int, b int) int {
 	return b
 }
 
-func RunPager(rawPage api.Page, viewDepth *int) {
-	*viewDepth++
+func MakePager(rawPage api.Page) pagerModel {
 	model := pagerModel{rawPage: rawPage,
-		paginator:    paginator.NewModel(),
-		viewDepth:    viewDepth,
-		currentDepth: *viewDepth}
-
-	p := tea.NewProgram(
-		model,
-		tea.WithAltScreen(),
-		tea.WithMouseCellMotion(),
-	)
-
-	if err := p.Start(); err != nil {
-		fmt.Println("could not run program:", err)
-		os.Exit(1)
-	}
+		paginator: paginator.NewModel()}
+	return model
 }
