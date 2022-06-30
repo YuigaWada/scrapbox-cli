@@ -1,7 +1,7 @@
 package main
 
 import (
-	api "YuigaWada/sbox/wrapper"
+	"YuigaWada/sbox/api"
 	"fmt"
 	"strings"
 
