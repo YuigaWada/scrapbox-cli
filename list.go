@@ -68,7 +68,7 @@ func (m listModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", " ":
 			for _, item := range m.pages {
 				if m.list.SelectedItem().FilterValue() == item.Title_ {
-					model := MakePager(item)
+					model := MakeViewer(item)
 					model.parent = &m
 					return model, MakeInitMsg
 				}

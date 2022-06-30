@@ -37,7 +37,7 @@ var (
 	}()
 )
 
-type pagerModel struct {
+type viewerModel struct {
 	parent            interface{}
 	rawPage           api.Page
 	page              api.ScrapboxPage
@@ -57,11 +57,11 @@ func (m subListModel) getCursor(perPage int) int {
 	return m.index % perPage
 }
 
-func (m pagerModel) Init() tea.Cmd {
+func (m viewerModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
 		cmds []tea.Cmd
@@ -132,7 +132,7 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				break
 			}
-			model := MakePager(api.MakePage(m.rawPage.User, link))
+			model := MakeViewer(api.MakePage(m.rawPage.User, link))
 			model.parent = &m
 			return model, MakeInitMsg
 		}
@@ -144,7 +144,7 @@ func (m pagerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m pagerModel) View() string {
+func (m viewerModel) View() string {
 	if !m.ready {
 		return "Fetching...\n" + m.progress.View()
 	}
@@ -171,13 +171,13 @@ func (m pagerModel) View() string {
 	return baseView
 }
 
-func (m pagerModel) headerView() string {
+func (m viewerModel) headerView() string {
 	title := titleStyle.Render(m.rawPage.Title_)
 	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
 
-func (m pagerModel) footerView() string {
+func (m viewerModel) footerView() string {
 	info := infoStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
@@ -198,8 +198,8 @@ func min(a int, b int) int {
 	return b
 }
 
-func MakePager(rawPage api.Page) pagerModel {
-	model := pagerModel{rawPage: rawPage,
+func MakeViewer(rawPage api.Page) viewerModel {
+	model := viewerModel{rawPage: rawPage,
 		paginator: paginator.NewModel()}
 	return model
 }
