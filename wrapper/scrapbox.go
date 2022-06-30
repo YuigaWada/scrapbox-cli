@@ -20,7 +20,7 @@ type Page struct {
 	ID      string `json:"id"`
 	BaseUrl string
 	ApiUrl  string
-	User    *ScrapUser
+	User    ScrapUser
 }
 
 var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
@@ -62,7 +62,7 @@ func (p Page) Read(mainColor lipgloss.Color) (ScrapboxPage, error) {
 	return content.parse(mainColor), nil
 }
 
-func MakePage(user *ScrapUser, title string) Page {
+func MakePage(user ScrapUser, title string) Page {
 	return Page{Title_: title,
 		ApiUrl: user.getDetailApi(title)}
 }
@@ -73,11 +73,11 @@ type ScrapUser struct {
 	Project string
 }
 
-func (user *ScrapUser) getReadApi() string {
+func (user ScrapUser) getReadApi() string {
 	return fmt.Sprintf("https://scrapbox.io/api/pages/%s", user.Project)
 }
 
-func (user *ScrapUser) getDetailApi(title string) string {
+func (user ScrapUser) getDetailApi(title string) string {
 	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s/text", user.Project, url.PathEscape(title))
 }
 
@@ -111,7 +111,7 @@ func (p *Pager) Read(user ScrapUser) []Page {
 
 	for i, page := range pages {
 		pages[i].ApiUrl = user.getDetailApi(page.Title_)
-		pages[i].User = &user
+		pages[i].User = user
 	}
 
 	return pages
