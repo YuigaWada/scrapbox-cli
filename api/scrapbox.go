@@ -23,6 +23,15 @@ type Page struct {
 	User    ScrapUser
 }
 
+type DetailPage struct {
+	RelatedPage RelatedPage `json:"relatedPages"`
+}
+
+type RelatedPage struct {
+	Links1hop []Page `json:"links1hop"`
+	Links2hop []Page `json:"links2hop"`
+}
+
 var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
 
 func (p Page) Description() string {
@@ -51,20 +60,40 @@ func (p Page) Read(mainColor lipgloss.Color) (ScrapboxPage, error) {
 	if err != nil {
 		return ScrapboxPage{}, err
 	}
-
 	defer resp.Body.Close()
+
+	resp2, err := http.Get(p.User.getDetailApi(p.Title_))
+	if err != nil {
+		return ScrapboxPage{}, err
+	}
+	defer resp2.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return ScrapboxPage{}, err
 	}
 
-	content := ScrapboxPage{string(body), []string{}}
+	var linkPages []Page
+	result := DetailPage{}
+	err = json.NewDecoder(resp2.Body).Decode(&result)
+	if err != nil {
+		panic(err)
+	}
+
+	linkPages = append(linkPages, result.RelatedPage.Links1hop...)
+	linkPages = append(linkPages, result.RelatedPage.Links2hop...)
+
+	var links []string
+	for _, linkPage := range linkPages {
+		links = append(links, linkPage.Title_)
+	}
+
+	content := ScrapboxPage{Content: string(body), Links: links}
 	return content.parse(mainColor), nil
 }
 
 func MakePage(user ScrapUser, title string) Page {
-	return Page{Title_: title,
-		ApiUrl: user.getDetailApi(title)}
+	return Page{Title_: title, ApiUrl: user.getTextApi(title)}
 }
 
 var _ list.DefaultItem = (*Page)(nil)
@@ -77,8 +106,12 @@ func (user ScrapUser) getReadApi() string {
 	return fmt.Sprintf("https://scrapbox.io/api/pages/%s", user.Project)
 }
 
-func (user ScrapUser) getDetailApi(title string) string {
+func (user ScrapUser) getTextApi(title string) string {
 	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s/text", user.Project, url.PathEscape(title))
+}
+
+func (user ScrapUser) getDetailApi(title string) string {
+	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s", user.Project, url.PathEscape(title))
 }
 
 type Pager struct {
@@ -110,7 +143,7 @@ func (p *Pager) Read(user ScrapUser) []Page {
 	p.skip += len(pages)
 
 	for i, page := range pages {
-		pages[i].ApiUrl = user.getDetailApi(page.Title_)
+		pages[i].ApiUrl = user.getTextApi(page.Title_)
 		pages[i].User = user
 	}
 
@@ -149,7 +182,7 @@ func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
 		}
 	}
 
-	*spage = ScrapboxPage{strings.Join(slice[1:], "\n"), []string{}}
+	*spage = ScrapboxPage{strings.Join(slice[1:], "\n"), spage.Links}
 	patterns := scrapLinkRegex.FindAllStringSubmatch(spage.Content, -1)
 
 	if len(patterns) == 0 {
