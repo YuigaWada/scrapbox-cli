@@ -34,6 +34,7 @@ type RelatedPage struct {
 }
 
 var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
+var boldRegex = regexp.MustCompile(`\[\*\s([^(\[|\])]+)\]`)
 
 func (p Page) Description() string {
 	res, err := url.PathUnescape(p.ApiUrl)
@@ -187,28 +188,49 @@ func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
 	}
 
 	*spage = ScrapboxPage{strings.Join(slice[1:], "\n"), spage.Links}
-	patterns := scrapLinkRegex.FindAllStringSubmatch(spage.Content, -1)
+	renderBold(spage)
+	renderLinks(spage, mainColor)
 
-	if len(patterns) == 0 {
-		return *spage
+	return *spage
+}
+
+func renderLinks(spage *ScrapboxPage, mainColor lipgloss.Color) {
+	var style = lipgloss.NewStyle().Foreground(mainColor)
+	r := func(body string, matched string) string {
+		decoLink := fmt.Sprintf("[%s]", string(matched))
+		link := Link{Title: matched, Tag: ""}
+		if !contains(spage.Links, link) {
+			spage.Links = append(spage.Links, link)
+		}
+		return strings.Replace(body, decoLink, style.Render(matched), -1)
 	}
 
-	var style = lipgloss.NewStyle().Foreground(mainColor)
+	render(scrapLinkRegex, spage, r)
+}
+
+func renderBold(spage *ScrapboxPage) {
+	var style = lipgloss.NewStyle().Bold(true)
+	r := func(body string, matched string) string {
+		return strings.Replace(body, fmt.Sprintf("[* %s]", matched), style.Render(matched), -1)
+	}
+
+	render(boldRegex, spage, r)
+}
+
+func render(regex *regexp.Regexp, spage *ScrapboxPage, renderAction func(string, string) string) {
+	patterns := regex.FindAllStringSubmatch(spage.Content, -1)
+	if len(patterns) == 0 {
+		return
+	}
+
 	for _, pattern := range patterns {
-		for i, linkStr := range pattern {
+		for i, matched := range pattern {
 			if i == 0 {
 				continue
 			}
-			decoLink := fmt.Sprintf("[%s]", string(linkStr))
-			link := Link{Title: linkStr, Tag: ""}
-			if !contains(spage.Links, link) {
-				spage.Links = append(spage.Links, link)
-			}
-			spage.Content = strings.Replace(spage.Content, decoLink, style.Render(linkStr), -1)
+			spage.Content = renderAction(spage.Content, matched)
 		}
 	}
-
-	return *spage
 }
 
 func contains(list interface{}, elem interface{}) bool {
