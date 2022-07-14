@@ -16,8 +16,9 @@ import (
 )
 
 type Page struct {
-	Title_  string `json:"title"`
-	ID      string `json:"id"`
+	Title_  string   `json:"title"`
+	ID      string   `json:"id"`
+	LinksLc []string `json:"linksLc"`
 	BaseUrl string
 	ApiUrl  string
 	User    ScrapUser
@@ -62,17 +63,22 @@ func (p Page) Read(mainColor lipgloss.Color) (ScrapboxPage, error) {
 	}
 	defer resp.Body.Close()
 
-	resp2, err := http.Get(p.User.getDetailApi(p.Title_))
-	if err != nil {
-		return ScrapboxPage{}, err
-	}
-	defer resp2.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return ScrapboxPage{}, err
 	}
 
+	content := ScrapboxPage{Content: string(body)}
+	return content.parse(mainColor), nil
+}
+
+func (p Page) GetNhopLinks() ([]Page, error) {
+	resp2, err := http.Get(p.User.getDetailApi(p.Title_))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp2.Body.Close()
 	var linkPages []Page
 	result := DetailPage{}
 	err = json.NewDecoder(resp2.Body).Decode(&result)
@@ -82,14 +88,7 @@ func (p Page) Read(mainColor lipgloss.Color) (ScrapboxPage, error) {
 
 	linkPages = append(linkPages, result.RelatedPage.Links1hop...)
 	linkPages = append(linkPages, result.RelatedPage.Links2hop...)
-
-	var links []string
-	for _, linkPage := range linkPages {
-		links = append(links, linkPage.Title_)
-	}
-
-	content := ScrapboxPage{Content: string(body), Links: links}
-	return content.parse(mainColor), nil
+	return linkPages, nil
 }
 
 func MakePage(user ScrapUser, title string) Page {
@@ -155,7 +154,12 @@ func (p Pager) Write(title string, body string) {
 
 type ScrapboxPage struct {
 	Content string
-	Links   []string
+	Links   []Link
+}
+
+type Link struct {
+	Title string
+	Tag   string
 }
 
 func isSpace(target rune) bool {
@@ -191,15 +195,16 @@ func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
 
 	var style = lipgloss.NewStyle().Foreground(mainColor)
 	for _, pattern := range patterns {
-		for i, link := range pattern {
+		for i, linkStr := range pattern {
 			if i == 0 {
 				continue
 			}
-			decoLink := fmt.Sprintf("[%s]", string(link))
+			decoLink := fmt.Sprintf("[%s]", string(linkStr))
+			link := Link{Title: linkStr, Tag: ""}
 			if !contains(spage.Links, link) {
 				spage.Links = append(spage.Links, link)
 			}
-			spage.Content = strings.Replace(spage.Content, decoLink, style.Render(link), -1)
+			spage.Content = strings.Replace(spage.Content, decoLink, style.Render(linkStr), -1)
 		}
 	}
 

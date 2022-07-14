@@ -49,6 +49,10 @@ type viewerModel struct {
 	visibleItemLength int
 }
 
+type nHopLinks struct {
+	links []api.Link
+}
+
 type subListModel struct {
 	index int
 }
@@ -96,6 +100,23 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.page = page
 			m.ready = true
 			m.paginator.PerPage = int(float64(height) * (1 - heightAlpha))
+
+			cmd := func() tea.Msg { // load nHopLinks on goroutine
+				linkPages, err := m.rawPage.GetNhopLinks()
+				if err != nil {
+					return err
+				}
+				links := []api.Link{}
+				for _, link := range linkPages {
+					tag := ""
+					if len(link.LinksLc) > 0 {
+						tag = link.LinksLc[0]
+					}
+					links = append(links, api.Link{Title: link.Title_, Tag: tag})
+				}
+				return nHopLinks{links}
+			}
+			cmds = append(cmds, cmd)
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = int(float64(msg.Height)*heightAlpha) - verticalMarginHeight
@@ -103,6 +124,10 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.viewport.YPosition = headerHeight + 1
 		// m.sublist.viewport.YPosition = height/2 + headerHeight
+	case nHopLinks:
+		m.page.Links = append(m.page.Links, msg.links...)
+		m.viewport.SetContent(m.page.Content)
+		m.paginator.SetTotalPages(len(m.page.Links))
 	case tea.KeyMsg:
 		// sublist
 		switch msg.String() {
@@ -126,13 +151,13 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		case "enter", " ":
 			link := m.page.Links[m.sublist.index]
-			if isUrl, url := hasUrl(link); isUrl {
+			if isUrl, url := hasUrl(link.Title); isUrl {
 				if err := webbrowser.Open(url); err != nil {
 					log.Fatal(err)
 				}
 				break
 			}
-			model := MakeViewer(api.MakePage(m.rawPage.User, link))
+			model := MakeViewer(api.MakePage(m.rawPage.User, link.Title))
 			model.parent = &m
 			return model, MakeInitMsg
 		}
@@ -158,10 +183,16 @@ func (m viewerModel) View() string {
 	p := pageCount * perPage
 	for i, link := range m.page.Links[p:min(p+perPage, len(m.page.Links))] {
 		cursor := " "
+		prefix := ""
 		if m.sublist.getCursor(perPage) == i {
 			cursor = ">"
 		}
-		subListView := fmt.Sprintf("%s %s", cursor, link)
+
+		if len(link.Tag) > 0 {
+			prefix = fmt.Sprintf("[%s] ==> ", link.Tag)
+		}
+
+		subListView := fmt.Sprintf("%s %s%s", cursor, prefix, link.Title)
 		if m.sublist.getCursor(perPage) == i {
 			subListView = style.Render(subListView)
 		}
