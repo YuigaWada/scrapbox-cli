@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/paginator"
-	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -42,8 +42,9 @@ type viewerModel struct {
 	rawPage           api.Page
 	page              api.ScrapboxPage
 	ready             bool
+	linkLoaded        bool
 	viewport          viewport.Model
-	progress          progress.Model
+	linkSpinner       spinner.Model
 	sublist           subListModel
 	paginator         paginator.Model
 	visibleItemLength int
@@ -73,11 +74,6 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.progress.Width = msg.Width - padding*2 - 4
-		if m.progress.Width > maxWidth {
-			m.progress.Width = maxWidth
-		}
-
 		headerHeight := lipgloss.Height(m.headerView())
 		footerHeight := lipgloss.Height(m.footerView())
 		verticalMarginHeight := headerHeight + footerHeight
@@ -116,6 +112,7 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return nHopLinks{links}
 			}
+			cmds = append(cmds, m.linkSpinner.Tick)
 			cmds = append(cmds, cmd)
 		} else {
 			m.viewport.Width = msg.Width
@@ -128,6 +125,7 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.page.Links = append(m.page.Links, msg.links...)
 		m.viewport.SetContent(m.page.Content)
 		m.paginator.SetTotalPages(len(m.page.Links))
+		m.linkLoaded = true
 	case tea.KeyMsg:
 		// sublist
 		switch msg.String() {
@@ -163,6 +161,9 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	m.linkSpinner, cmd = m.linkSpinner.Update(msg)
+	cmds = append(cmds, cmd)
+
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -171,7 +172,7 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m viewerModel) View() string {
 	if !m.ready {
-		return "Fetching...\n" + m.progress.View()
+		return "Fetching...\n"
 	}
 
 	var style = lipgloss.NewStyle().Foreground(mainColor)
@@ -197,6 +198,10 @@ func (m viewerModel) View() string {
 			subListView = style.Render(subListView)
 		}
 		baseView += subListView + "\n"
+	}
+
+	if !m.linkLoaded {
+		baseView += m.linkSpinner.View()
 	}
 
 	return baseView
@@ -230,7 +235,12 @@ func min(a int, b int) int {
 }
 
 func MakeViewer(rawPage api.Page) viewerModel {
+	s := spinner.New()
+	s.Spinner = spinner.Line
 	model := viewerModel{rawPage: rawPage,
-		paginator: paginator.NewModel()}
+		paginator:   paginator.NewModel(),
+		linkLoaded:  false,
+		ready:       false,
+		linkSpinner: s}
 	return model
 }
