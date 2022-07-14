@@ -76,7 +76,8 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		headerHeight := lipgloss.Height(m.headerView())
 		footerHeight := lipgloss.Height(m.footerView())
-		verticalMarginHeight := headerHeight + footerHeight
+		linkSpinnerHeight := lipgloss.Height(m.linkSpinner.View())
+		verticalMarginHeight := headerHeight + footerHeight + linkSpinnerHeight
 		height := msg.Height - verticalMarginHeight
 		heightAlpha := 3 / 4.0
 		m.viewport.HighPerformanceRendering = false
