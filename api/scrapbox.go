@@ -15,147 +15,31 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type Page struct {
-	Title_  string   `json:"title"`
-	ID      string   `json:"id"`
+// for json parser
+type rawPage struct {
+	Title   string   `json:"title"`
+	Id      string   `json:"id"`
 	LinksLc []string `json:"linksLc"`
-	BaseUrl string
-	ApiUrl  string
-	User    ScrapUser
 }
 
-type DetailPage struct {
-	RelatedPage RelatedPage `json:"relatedPages"`
+func (p rawPage) convert() Page {
+	return Page{Title_: p.Title}
 }
 
-type RelatedPage struct {
-	Links1hop []Page `json:"links1hop"`
-	Links2hop []Page `json:"links2hop"`
+// ** struct **
+type Scrapbox struct {
+	Project  string
+	Pages    []Page
+	paginate Paginate
 }
 
-var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
-var boldRegex = regexp.MustCompile(`\[\*\s([^(\[|\])]+)\]`)
-
-func (p Page) Description() string {
-	res, err := url.PathUnescape(p.ApiUrl)
-	if err != nil {
-		panic("failed to unescape url")
-	}
-	return res
-}
-
-func (p Page) Title() string {
-	return p.Title_
-}
-
-func (p Page) FilterValue() string {
-	return p.Title_
-}
-
-func (p Page) Read(mainColor lipgloss.Color) (ScrapboxPage, error) {
-	const errMsg = "Failed to open URL .... :("
-	if len(p.ApiUrl) == 0 {
-		return ScrapboxPage{}, fmt.Errorf(errMsg)
-	}
-
-	resp, err := http.Get(p.ApiUrl)
-	if err != nil {
-		return ScrapboxPage{}, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ScrapboxPage{}, err
-	}
-
-	content := ScrapboxPage{Content: string(body)}
-	return content.parse(mainColor), nil
-}
-
-func (p Page) GetNhopLinks() ([]Page, error) {
-	resp2, err := http.Get(p.User.getDetailApi(p.Title_))
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp2.Body.Close()
-	var linkPages []Page
-	result := DetailPage{}
-	err = json.NewDecoder(resp2.Body).Decode(&result)
-	if err != nil {
-		panic(err)
-	}
-
-	linkPages = append(linkPages, result.RelatedPage.Links1hop...)
-	linkPages = append(linkPages, result.RelatedPage.Links2hop...)
-	return linkPages, nil
-}
-
-func MakePage(user ScrapUser, title string) Page {
-	return Page{Title_: title, ApiUrl: user.getTextApi(title)}
-}
-
-var _ list.DefaultItem = (*Page)(nil)
-
-type ScrapUser struct {
-	Project string
-}
-
-func (user ScrapUser) getReadApi() string {
-	return fmt.Sprintf("https://scrapbox.io/api/pages/%s", user.Project)
-}
-
-func (user ScrapUser) getTextApi(title string) string {
-	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s/text", user.Project, url.PathEscape(title))
-}
-
-func (user ScrapUser) getDetailApi(title string) string {
-	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s", user.Project, url.PathEscape(title))
-}
-
-type Pager struct {
-	skip  int
-	limit int
-}
-
-func MakePager() Pager {
-	return Pager{0, 500}
-}
-
-func (p *Pager) Read(user ScrapUser) []Page {
-	url := user.getReadApi()
-	url = fmt.Sprintf("%s?skip=%d&limit=%d", url, p.skip, p.limit)
-	resp, err := http.Get(url)
-	if err != nil {
-		panic(err)
-	}
-
-	defer resp.Body.Close()
-	var pages []Page
-	result := struct{ Pages []Page }{}
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		panic(err)
-	}
-
-	pages = result.Pages
-	p.skip += len(pages)
-
-	for i, page := range pages {
-		pages[i].ApiUrl = user.getTextApi(page.Title_)
-		pages[i].User = user
-	}
-
-	return pages
-}
-func (p Pager) Write(title string, body string) {
-
-}
-
-type ScrapboxPage struct {
+type Page struct {
+	// BaseUrl string
+	Title_  string
 	Content string
 	Links   []Link
+	apiUrl  string
+	Sbox    *Scrapbox
 }
 
 type Link struct {
@@ -163,12 +47,138 @@ type Link struct {
 	Tag   string
 }
 
+type Paginate struct {
+	skip  int
+	limit int
+}
+
+// ** var / util **
+
+var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
+var boldRegex = regexp.MustCompile(`\[\*\s([^(\[|\])]+)\]`)
+var _ list.DefaultItem = (*Page)(nil)
+
+func (p Page) Description() string {
+	res, err := url.PathUnescape(p.apiUrl)
+	if err != nil {
+		panic("failed to unescape url")
+	}
+	return res
+}
+
+func (s Scrapbox) getReadApi() string {
+	return fmt.Sprintf("https://scrapbox.io/api/pages/%s", s.Project)
+}
+
+func (s Scrapbox) getTextApi(title string) string {
+	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s/text", s.Project, url.PathEscape(title))
+}
+
+func (s Scrapbox) getDetailApi(title string) string {
+	return fmt.Sprintf("https://scrapbox.io/api/pages/%s/%s", s.Project, url.PathEscape(title))
+}
+
+// ** func **
+
+func (p *Page) Read(mainColor lipgloss.Color) (*Page, error) {
+	const errMsg = "Failed to open URL .... :("
+	if len(p.apiUrl) == 0 {
+		return p, fmt.Errorf(errMsg)
+	}
+
+	resp, err := http.Get(p.apiUrl)
+	if err != nil {
+		return p, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return p, err
+	}
+
+	p.Content = string(body)
+	return p.parse(mainColor), nil
+}
+
+func (p Page) GetNhopLinks() ([]Link, error) {
+	resp2, err := http.Get(p.Sbox.getDetailApi(p.Title_))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp2.Body.Close()
+	var linkPages []rawPage
+	result := struct {
+		RelatedPage struct {
+			Links1hop []rawPage `json:"links1hop"`
+			Links2hop []rawPage `json:"links2hop"`
+		} `json:"relatedPages"`
+	}{}
+
+	err = json.NewDecoder(resp2.Body).Decode(&result)
+	if err != nil {
+		panic(err)
+	}
+
+	linkPages = append(linkPages, result.RelatedPage.Links1hop...)
+	linkPages = append(linkPages, result.RelatedPage.Links2hop...)
+
+	links := []Link{}
+	for _, link := range linkPages {
+		tag := ""
+		if len(link.LinksLc) > 0 {
+			tag = link.LinksLc[0]
+		}
+		links = append(links, Link{Title: link.Title, Tag: tag})
+	}
+
+	return links, nil
+}
+
+func MakePage(s *Scrapbox, title string) Page {
+	return Page{Title_: title, apiUrl: s.getTextApi(title), Sbox: s}
+}
+
+func (s *Scrapbox) Read() []Page {
+	url := s.getReadApi()
+	url = fmt.Sprintf("%s?skip=%d&limit=%d", url, s.paginate.skip, s.paginate.limit)
+	resp, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+
+	defer resp.Body.Close()
+	var pages []Page
+	result := struct{ Pages []rawPage }{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		panic(err)
+	}
+
+	pages = []Page{}
+	for _, p := range result.Pages {
+		pages = append(pages, p.convert())
+	}
+
+	for i, page := range pages {
+		pages[i].apiUrl = s.getTextApi(page.Title_)
+		pages[i].Sbox = s
+	}
+
+	s.paginate.skip += len(pages)
+	return pages
+}
+func (s *Scrapbox) Write(title string, body string) {
+
+}
+
 func isSpace(target rune) bool {
 	return unicode.IsSpace(target) || target == 0x3000
 }
 
-func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
-	slice := strings.Split(spage.Content, "\n")
+func (page *Page) parse(mainColor lipgloss.Color) *Page {
+	slice := strings.Split(page.Content, "\n")
 	dotStr := lipgloss.NewStyle().Bold(true).Render("・")
 	for i, str := range slice {
 		str := []rune(str)
@@ -187,38 +197,38 @@ func (spage *ScrapboxPage) parse(mainColor lipgloss.Color) ScrapboxPage {
 		}
 	}
 
-	*spage = ScrapboxPage{strings.Join(slice[1:], "\n"), spage.Links}
-	renderBold(spage)
-	renderLinks(spage, mainColor)
+	page.Content = strings.Join(slice[1:], "\n")
+	renderBold(page)
+	renderLinks(page, mainColor)
 
-	return *spage
+	return page
 }
 
-func renderLinks(spage *ScrapboxPage, mainColor lipgloss.Color) {
+func renderLinks(page *Page, mainColor lipgloss.Color) {
 	var style = lipgloss.NewStyle().Foreground(mainColor)
 	r := func(body string, matched string) string {
 		decoLink := fmt.Sprintf("[%s]", string(matched))
 		link := Link{Title: matched, Tag: ""}
-		if !contains(spage.Links, link) {
-			spage.Links = append(spage.Links, link)
+		if !contains(page.Links, link) {
+			page.Links = append(page.Links, link)
 		}
 		return strings.Replace(body, decoLink, style.Render(matched), -1)
 	}
 
-	render(scrapLinkRegex, spage, r)
+	render(scrapLinkRegex, page, r)
 }
 
-func renderBold(spage *ScrapboxPage) {
+func renderBold(page *Page) {
 	var style = lipgloss.NewStyle().Bold(true)
 	r := func(body string, matched string) string {
 		return strings.Replace(body, fmt.Sprintf("[* %s]", matched), style.Render(matched), -1)
 	}
 
-	render(boldRegex, spage, r)
+	render(boldRegex, page, r)
 }
 
-func render(regex *regexp.Regexp, spage *ScrapboxPage, renderAction func(string, string) string) {
-	patterns := regex.FindAllStringSubmatch(spage.Content, -1)
+func render(regex *regexp.Regexp, page *Page, renderAction func(string, string) string) {
+	patterns := regex.FindAllStringSubmatch(page.Content, -1)
 	if len(patterns) == 0 {
 		return
 	}
@@ -228,7 +238,7 @@ func render(regex *regexp.Regexp, spage *ScrapboxPage, renderAction func(string,
 			if i == 0 {
 				continue
 			}
-			spage.Content = renderAction(spage.Content, matched)
+			page.Content = renderAction(page.Content, matched)
 		}
 	}
 }
@@ -249,4 +259,12 @@ func contains(list interface{}, elem interface{}) bool {
 		}
 	}
 	return false
+}
+
+func (p Page) Title() string {
+	return p.Title_
+}
+
+func (p Page) FilterValue() string {
+	return p.Title_
 }

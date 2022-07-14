@@ -39,8 +39,7 @@ var (
 
 type viewerModel struct {
 	parent            interface{}
-	rawPage           api.Page
-	page              api.ScrapboxPage
+	page              api.Page
 	ready             bool
 	linkLoaded        bool
 	viewport          viewport.Model
@@ -87,29 +86,21 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.viewport = viewport.New(msg.Width, int(float64(height)*heightAlpha))
 
-			page, err := m.rawPage.Read(mainColor)
+			page, err := m.page.Read(mainColor)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			m.viewport.SetContent(page.Content)
 			m.paginator.SetTotalPages(len(page.Links))
-			m.page = page
+			m.page = *page
 			m.ready = true
 			m.paginator.PerPage = int(float64(height) * (1 - heightAlpha))
 
 			cmd := func() tea.Msg { // load nHopLinks on goroutine
-				linkPages, err := m.rawPage.GetNhopLinks()
+				links, err := m.page.GetNhopLinks()
 				if err != nil {
 					return err
-				}
-				links := []api.Link{}
-				for _, link := range linkPages {
-					tag := ""
-					if len(link.LinksLc) > 0 {
-						tag = link.LinksLc[0]
-					}
-					links = append(links, api.Link{Title: link.Title_, Tag: tag})
 				}
 				return nHopLinks{links}
 			}
@@ -156,7 +147,7 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				break
 			}
-			model := MakeViewer(api.MakePage(m.rawPage.User, link.Title))
+			model := MakeViewer(api.MakePage(m.page.Sbox, link.Title))
 			model.parent = &m
 			return model, MakeInitMsg
 		}
@@ -209,7 +200,7 @@ func (m viewerModel) View() string {
 }
 
 func (m viewerModel) headerView() string {
-	title := titleStyle.Render(m.rawPage.Title_)
+	title := titleStyle.Render(m.page.Title())
 	line := strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title)))
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
@@ -235,10 +226,10 @@ func min(a int, b int) int {
 	return b
 }
 
-func MakeViewer(rawPage api.Page) viewerModel {
+func MakeViewer(page api.Page) viewerModel {
 	s := spinner.New()
 	s.Spinner = spinner.Line
-	model := viewerModel{rawPage: rawPage,
+	model := viewerModel{page: page,
 		paginator:   paginator.NewModel(),
 		linkLoaded:  false,
 		ready:       false,

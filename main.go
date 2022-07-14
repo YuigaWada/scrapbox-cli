@@ -20,10 +20,9 @@ var Height int = 0
 
 func loadPages() tea.Msg {
 	config := LoadConfig()
-	pager := api.MakePager()
-	user := api.ScrapUser{config.project}
-	rawPages := pager.Read(user)
-	return pagesLoadedMsg{rawPages}
+	s := api.Scrapbox{Project: config.project}
+	pages := s.Read()
+	return pagesLoadedMsg{pages}
 }
 
 func getCommands() []*cli.Command {
