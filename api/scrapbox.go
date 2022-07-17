@@ -56,6 +56,8 @@ type Paginate struct {
 
 var scrapLinkRegex = regexp.MustCompile(`\[([^($|\*)][^(\[|\])]+)\]`)
 var boldRegex = regexp.MustCompile(`\[\*\s([^(\[|\])]+)\]`)
+var tagRegex = regexp.MustCompile(`#([^\s]+)`)
+
 var _ list.DefaultItem = (*Page)(nil)
 
 func (p Page) Description() string {
@@ -199,6 +201,7 @@ func (page *Page) parse(mainColor lipgloss.Color) *Page {
 
 	page.Content = strings.Join(slice[1:], "\n")
 	renderBold(page)
+	renderTags(page, mainColor)
 	renderLinks(page, mainColor)
 
 	return page
@@ -225,6 +228,20 @@ func renderBold(page *Page) {
 	}
 
 	render(boldRegex, page, r)
+}
+
+func renderTags(page *Page, mainColor lipgloss.Color) {
+	var style = lipgloss.NewStyle().Background(mainColor).Foreground(lipgloss.Color("#000000"))
+	r := func(body string, matched string) string {
+		decoLink := fmt.Sprintf("#%s", string(matched))
+		link := Link{Title: matched, Tag: ""}
+		if !contains(page.Links, link) {
+			page.Links = append(page.Links, link)
+		}
+		return strings.Replace(body, decoLink, style.Render(" "+decoLink+" "), -1)
+	}
+
+	render(tagRegex, page, r)
 }
 
 func render(regex *regexp.Regexp, page *Page, renderAction func(string, string) string) {
