@@ -12,6 +12,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
+	"github.com/muesli/reflow/wrap"
 	"github.com/toqueteos/webbrowser"
 )
 
@@ -77,7 +79,7 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		footerHeight := lipgloss.Height(m.footerView())
 		linkSpinnerHeight := lipgloss.Height(m.linkSpinner.View())
 		verticalMarginHeight := headerHeight + footerHeight + linkSpinnerHeight
-		height := msg.Height - verticalMarginHeight
+		height := msg.Height - int(1.2*float64(verticalMarginHeight))
 		heightAlpha := 3 / 4.0
 		m.viewport.HighPerformanceRendering = false
 		Width = msg.Width
@@ -91,7 +93,7 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Fatal(err)
 			}
 
-			m.viewport.SetContent(page.Content)
+			m.viewport.SetContent(wrap.String(wordwrap.String(page.Content, msg.Width), msg.Width))
 			m.paginator.SetTotalPages(len(page.Links))
 			m.page = *page
 			m.ready = true
@@ -115,7 +117,6 @@ func (m viewerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// m.sublist.viewport.YPosition = height/2 + headerHeight
 	case nHopLinks:
 		m.page.Links = append(m.page.Links, msg.links...)
-		m.viewport.SetContent(m.page.Content)
 		m.paginator.SetTotalPages(len(m.page.Links))
 		m.linkLoaded = true
 	case tea.KeyMsg:
