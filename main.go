@@ -26,7 +26,8 @@ func loadPages() tea.Msg {
 		cli.Exit("", 1)
 	}
 
-	s := api.Scrapbox{Project: config.Project}
+	p := api.Paginate{Skip: 0, Limit: 500}
+	s := api.Scrapbox{Project: config.Project, Paginate: p}
 	pages := s.Read()
 	return pagesLoadedMsg{pages}
 }

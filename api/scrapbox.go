@@ -30,7 +30,7 @@ func (p rawPage) convert() Page {
 type Scrapbox struct {
 	Project  string
 	Pages    []Page
-	paginate Paginate
+	Paginate Paginate
 }
 
 type Page struct {
@@ -48,8 +48,8 @@ type Link struct {
 }
 
 type Paginate struct {
-	skip  int
-	limit int
+	Skip  int
+	Limit int
 }
 
 // ** var / util **
@@ -144,7 +144,7 @@ func MakePage(s *Scrapbox, title string) Page {
 
 func (s *Scrapbox) Read() []Page {
 	url := s.getReadApi()
-	url = fmt.Sprintf("%s?skip=%d&limit=%d", url, s.paginate.skip, s.paginate.limit)
+	url = fmt.Sprintf("%s?skip=%d&limit=%d", url, s.Paginate.Skip, s.Paginate.Limit)
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -168,7 +168,7 @@ func (s *Scrapbox) Read() []Page {
 		pages[i].Sbox = s
 	}
 
-	s.paginate.skip += len(pages)
+	s.Paginate.Skip += len(pages)
 	return pages
 }
 func (s *Scrapbox) Write(title string, body string) {
