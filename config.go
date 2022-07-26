@@ -3,40 +3,39 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 )
 
+const configPath = "config.json"
+
 type Config struct {
-	project string
+	Project string
 }
 
-func (conf *Config) save(path string) {
-	file, err := os.Create("config.json")
+func (conf *Config) save() error {
+	file, err := os.Create(configPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	defer file.Close()
 	err = json.NewEncoder(file).Encode(conf)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return err
 }
 
-func LoadConfig() Config {
+func LoadConfig() (Config, error) {
 	var config Config
-	file, err := os.Open("config.json")
-	if err != nil {
-		log.Fatal(err)
-		fmt.Println("error: Register your project name first!")
-	}
+	file, err := os.Open(configPath)
 	defer file.Close()
+	if err != nil {
+		fmt.Println("error: Register your project name first!")
+		return Config{}, err
+	}
 
 	if err := json.NewDecoder(file).Decode(&config); err != nil {
-		log.Fatal(err)
 		fmt.Println("error: Your config file is not valid!")
+		return Config{}, err
 	}
 	// return config
-	return Config{"yuwd"}
+	return config, nil
 }
