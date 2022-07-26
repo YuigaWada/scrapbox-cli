@@ -169,7 +169,7 @@ func (m viewerModel) View() string {
 	}
 
 	var style = lipgloss.NewStyle().Foreground(mainColor)
-	baseView := fmt.Sprintf("%s\n%s\n%s\n", m.headerView(), m.viewport.View(), m.footerView())
+	baseView := fmt.Sprintf("%s\n%s\n%s\n[Link]\n", m.headerView(), m.viewport.View(), m.footerView())
 	start, end := m.paginator.GetSliceBounds(len(m.page.Links))
 	m.visibleItemLength = end - start + 1
 	perPage := m.paginator.PerPage
