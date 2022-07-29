@@ -1,7 +1,7 @@
 run:
-	$(MAKE) build && ./sbox
+	$(MAKE) build && ./sbox/sbox
 build:
-	go build
+	cd ./sbox; go build
 format:
 	go fmt
 clean:
