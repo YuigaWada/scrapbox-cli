@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/YuigaWada/sbox/api"
+	"github.com/YuigaWada/scrapbox-cli/sbox/api"
 
 	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/spinner"

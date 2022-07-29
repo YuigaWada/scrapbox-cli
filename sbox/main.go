@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/YuigaWada/sbox/api"
+	"github.com/YuigaWada/scrapbox-cli/sbox/api"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

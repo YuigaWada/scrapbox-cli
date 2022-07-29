@@ -1,4 +1,4 @@
-module github.com/YuigaWada/sbox
+module github.com/YuigaWada/scrapbox-cli/sbox
 
 go 1.18
 
