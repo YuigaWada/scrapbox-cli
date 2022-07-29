@@ -1,4 +1,4 @@
-module YuigaWada/sbox
+module github.com/YuigaWada/sbox
 
 go 1.18
 

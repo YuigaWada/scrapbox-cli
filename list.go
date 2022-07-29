@@ -1,10 +1,10 @@
 package main
 
 import (
-	"YuigaWada/sbox/api"
 	"fmt"
 	"strings"
 
+	"github.com/YuigaWada/sbox/api"
 	"github.com/charmbracelet/bubbles/list"
 	bubleList "github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"

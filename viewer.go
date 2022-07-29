@@ -1,11 +1,12 @@
 package main
 
 import (
-	"YuigaWada/sbox/api"
 	"fmt"
 	"log"
 	"regexp"
 	"strings"
+
+	"github.com/YuigaWada/sbox/api"
 
 	"github.com/charmbracelet/bubbles/paginator"
 	"github.com/charmbracelet/bubbles/spinner"

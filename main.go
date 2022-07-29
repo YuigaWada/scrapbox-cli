@@ -1,11 +1,12 @@
 package main
 
 import (
-	"YuigaWada/sbox/api"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+
+	"github.com/YuigaWada/sbox/api"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
