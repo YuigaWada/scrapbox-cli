@@ -4,16 +4,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/kirsle/configdir"
 )
 
-const configPath = "config.json"
+var dirPath = filepath.Join(configdir.LocalConfig(), "sbox")
+var configPath = filepath.Join(dirPath, "config.json")
 
 type Config struct {
 	Project string
 }
 
 func (conf *Config) save() error {
-	file, err := os.Create(configPath)
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		err := os.Mkdir(dirPath, 0755)
+		if err != nil {
+			return nil
+		}
+	}
+
+	file, err := os.OpenFile(configPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
