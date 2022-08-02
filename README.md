@@ -3,8 +3,16 @@
 
 https://user-images.githubusercontent.com/51681991/181074384-efe77a8b-155e-4581-ba9f-67b17c8836f2.mov
 
+## Installation
+
 ```
-❯ ./sbox -h
+go install github.com/YuigaWada/scrapbox-cli/sbox@latest
+```
+
+## Help
+
+```
+❯ sbox -h
 NAME:
    sbox - a simple viewer for scrapbox
 
@@ -22,4 +30,4 @@ GLOBAL OPTIONS:
 
 ## License
 
-Flareformer is released under the MIT. Please see the [LICENSE](LICENSE) file for more information.
+scrapbox-cli is released under the MIT. Please see the [LICENSE](LICENSE) file for more information.
